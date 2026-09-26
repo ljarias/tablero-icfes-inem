@@ -322,19 +322,21 @@ function updateGroup(){
  const below=ranked.filter(r=>r.delta<-0.05).length;
  const groupsWithData=summaries.filter(r=>valid(r.promedio)).length;
  const globalScores=data.map(r=>r["Punt Global"]).filter(valid);
- const over300=globalScores.filter(v=>v>300).length;
- const between200and300=globalScores.filter(v=>v>=200 && v<=300).length;
+ const atLeast300=globalScores.filter(v=>v>=300).length;
+ const between200and299=globalScores.filter(v=>v>=200 && v<=299).length;
  const under200=globalScores.filter(v=>v<200).length;
+ const globalTotal=globalScores.length;
+ const pct=n=>globalTotal?((n/globalTotal)*100).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1}):"0,0";
 
  groupInsight.innerHTML=`
    <p>En todo el colegio, el promedio de <strong>${m}</strong> es <strong>${label(avg)}</strong>. ${above} estudiantes están por encima del promedio institucional y ${below} por debajo. ${groupsWithData} de ${groupInfo.length} grupos/modalidades tienen datos disponibles para esta variable.</p>
    <p>Distribución institucional según el <strong>Puntaje Global</strong>:</p>
    <ul style="margin:8px 0 0 22px;padding:0;line-height:1.7">
-     <li><strong>${over300}</strong> estudiantes con más de 300 puntos.</li>
-     <li><strong>${between200and300}</strong> estudiantes entre 200 y 300 puntos.</li>
-     <li><strong>${under200}</strong> estudiantes con menos de 200 puntos.</li>
+     <li><strong>${atLeast300}</strong> estudiantes con <strong>300 o más puntos</strong> (<strong>${pct(atLeast300)}%</strong>).</li>
+     <li><strong>${between200and299}</strong> estudiantes entre <strong>200 y 299 puntos</strong> (<strong>${pct(between200and299)}%</strong>).</li>
+     <li><strong>${under200}</strong> estudiantes con <strong>menos de 200 puntos</strong> (<strong>${pct(under200)}%</strong>).</li>
    </ul>
-   <p style="margin-top:10px;font-size:13px;color:#6b7280">El conteo considera únicamente estudiantes con Puntaje Global disponible.</p>
+   <p style="margin-top:10px;font-size:13px;color:#6b7280">Los porcentajes se calculan sobre los ${globalTotal} estudiantes con Puntaje Global disponible.</p>
  `;
 
  const tb=document.querySelector("#groupRanking tbody");
