@@ -345,13 +345,26 @@ function updateGroup(){
 
  const tb=document.querySelector("#groupRanking tbody");
  tb.innerHTML="";
- let p=0;
- sorted(rows,m).forEach(r=>{
+ const rankingRows=sorted(rows,m);
+ const valueCounts=new Map();
+ rankingRows.filter(r=>valid(r.value)).forEach(r=>valueCounts.set(r.value,(valueCounts.get(r.value)||0)+1));
+ let lastValue=null;
+ let currentRank=0;
+ let validIndex=0;
+ rankingRows.forEach(r=>{
    const has=valid(r.value);
-   if(has)p++;
-   const source=data.find(d=>d.Estudiante===r.student && d[m]===r.value && d.grupo===r.grupo);
+   let rankText="—";
+   if(has){
+     validIndex++;
+     if(lastValue===null || r.value!==lastValue){
+       currentRank=validIndex;
+       lastValue=r.value;
+     }
+     const tied=(valueCounts.get(r.value)||0)>1;
+     rankText=`${currentRank}°${tied?' · Empate':''}`;
+   }
    const tr=document.createElement("tr");
-   tr.innerHTML=`<td>${has?p:"—"}</td>
+   tr.innerHTML=`<td><strong>${rankText}</strong></td>
      <td><span class="badge">${r.student}</span></td>
      <td>${r.grupo} · ${r.modalidad}</td>
      <td class="${has?"":"missing"}">${has?label(r.value):"Sin dato"}</td>
@@ -455,17 +468,25 @@ function updateHonors(){
 
   const tbody=document.querySelector("#honorsTable tbody");
   tbody.innerHTML="";
-  [...highScorers]
-    .sort((a,b)=>b.puntaje-a.puntaje || a.nombre.localeCompare(b.nombre,"es"))
-    .forEach((r,index)=>{
-      const place=index+1;
-      const stars=place<=5 ? "⭐".repeat(6-place) : "";
+  const institutionalRanking=[...highScorers]
+    .sort((a,b)=>b.puntaje-a.puntaje || a.nombre.localeCompare(b.nombre,"es"));
+  const scoreCounts=new Map();
+  institutionalRanking.forEach(r=>scoreCounts.set(r.puntaje,(scoreCounts.get(r.puntaje)||0)+1));
+  let lastScore=null;
+  let currentPlace=0;
+  institutionalRanking.forEach((r,index)=>{
+      if(lastScore===null || r.puntaje!==lastScore){
+        currentPlace=index+1;
+        lastScore=r.puntaje;
+      }
+      const tied=(scoreCounts.get(r.puntaje)||0)>1;
+      const stars=currentPlace<=5 ? "⭐".repeat(6-currentPlace) : "";
       const tr=document.createElement("tr");
-      if(place<=5){
-        tr.style.background=place===1?"#fff9d6":"#fffdf0";
+      if(currentPlace<=5){
+        tr.style.background=currentPlace===1?"#fff9d6":"#fffdf0";
       }
       tr.innerHTML=`
-        <td><strong>${place}°</strong></td>
+        <td><strong>${currentPlace}°${tied?' · Empate':''}</strong></td>
         <td><strong>${r.nombre}</strong></td>
         <td><span class="badge">${r.grupo}</span></td>
         <td>${r.modalidad}</td>
