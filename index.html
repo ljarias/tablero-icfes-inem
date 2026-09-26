@@ -175,16 +175,17 @@ select{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #c7d8cb;
   <div id="honorsGrid" class="honors-grid"></div>
 
   <div class="table-wrap">
-    <h3 class="chart-title">Tabla integrada · primeros 5 lugares de cada modalidad</h3>
-    <p class="chart-sub">Consolidado de los 40 estudiantes destacados, ordenado por grupo/modalidad y puesto.</p>
+    <h3 class="chart-title">Ranking institucional · estudiantes destacados</h3>
+    <p class="chart-sub">Los 40 estudiantes destacados se ordenan por Puntaje Global, de mayor a menor, sin agrupar por modalidad. Los cinco primeros lugares reciben un reconocimiento visual de 5 a 1 estrella.</p>
     <table id="honorsTable">
       <thead>
         <tr>
+          <th>Lugar general</th>
+          <th>Estudiante</th>
           <th>Grupo</th>
           <th>Modalidad</th>
-          <th>Puesto</th>
-          <th>Estudiante</th>
           <th>Puntaje Global</th>
+          <th>Reconocimiento</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -422,15 +423,21 @@ function updateHonors(){
   const tbody=document.querySelector("#honorsTable tbody");
   tbody.innerHTML="";
   [...top5RealNames]
-    .sort((a,b)=>a.grupo.localeCompare(b.grupo,"es",{numeric:true}) || a.puesto-b.puesto)
-    .forEach(r=>{
+    .sort((a,b)=>b.puntaje-a.puntaje || a.nombre.localeCompare(b.nombre,"es"))
+    .forEach((r,index)=>{
+      const place=index+1;
+      const stars=place<=5 ? "⭐".repeat(6-place) : "";
       const tr=document.createElement("tr");
+      if(place<=5){
+        tr.style.background=place===1?"#fff9d6":"#fffdf0";
+      }
       tr.innerHTML=`
+        <td><strong>${place}°</strong></td>
+        <td><strong>${r.nombre}</strong></td>
         <td><span class="badge">${r.grupo}</span></td>
         <td>${r.modalidad}</td>
-        <td>${r.puesto}°</td>
-        <td><strong>${r.nombre}</strong></td>
-        <td><strong>${r.puntaje}</strong></td>`;
+        <td><strong>${r.puntaje}</strong></td>
+        <td style="font-size:18px;white-space:nowrap">${stars}</td>`;
       tbody.appendChild(tr);
     });
 }
