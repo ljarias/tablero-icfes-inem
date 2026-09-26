@@ -213,8 +213,10 @@ function dtext(d){return valid(d)?(d>0?"+":"")+label(d):"—"}
 function rowsFor(g){return data.filter(r=>r.grupo===g)}
 function values(rows,m){return rows.map(r=>r[m]).filter(valid)}
 function groupLabel(g){const x=groupInfo.find(z=>z.grupo===g);return x?`${x.grupo} · ${x.modalidad}`:g}
+function groupNumber(g){const n=Number(String(g).split("-").pop());return Number.isFinite(n)?n:999}
+function groupsAscending(){return [...groupInfo].sort((a,b)=>groupNumber(a.grupo)-groupNumber(b.grupo))}
 function sorted(rows,m){const a=mean(values(rows,m));const yes=rows.filter(r=>valid(r[m])).map(r=>({student:r.Estudiante,grupo:r.grupo,modalidad:r.modalidad,value:r[m],delta:r[m]-a})).sort((x,y)=>y.value-x.value);const no=rows.filter(r=>!valid(r[m])).map(r=>({student:r.Estudiante,grupo:r.grupo,modalidad:r.modalidad,value:null,delta:null}));return[...yes,...no]}
-function fillGroupSelect(el){groupInfo.forEach(g=>{const o=document.createElement("option");o.value=g.grupo;o.textContent=`${g.grupo} · ${g.modalidad}`;el.appendChild(o)})}
+function fillGroupSelect(el){groupsAscending().forEach(g=>{const o=document.createElement("option");o.value=g.grupo;o.textContent=`${g.grupo} · ${g.modalidad}`;el.appendChild(o)})}
 function fillMetricSelect(el,arr){arr.forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;el.appendChild(o)})}
 function fillRanking(tableId,rows,m){const tb=document.querySelector(`#${tableId} tbody`);tb.innerHTML="";let p=0;sorted(rows,m).forEach(r=>{const has=valid(r.value);if(has)p++;const tr=document.createElement("tr");tr.innerHTML=`<td>${has?p:"—"}</td><td><span class="badge">${r.student}</span></td><td class="${has?"":"missing"}">${has?label(r.value):"Sin dato"}</td><td class="${dclass(r.delta)}">${dtext(r.delta)}</td><td>${has?state(r.delta):"Sin dato"}</td>`;tb.appendChild(tr)})}
 
@@ -252,6 +254,11 @@ function updateGroup(){
      promedio:mean(values(gr,m)),
      n:values(gr,m).length
    };
+ }).sort((a,b)=>{
+   if(valid(a.promedio)&&valid(b.promedio)) return b.promedio-a.promedio;
+   if(valid(a.promedio)) return -1;
+   if(valid(b.promedio)) return 1;
+   return groupNumber(a.grupo)-groupNumber(b.grupo);
  });
 
  const x=summaries.map(r=>r.grupo);
@@ -365,7 +372,14 @@ function updateStudent(){
 function updateTopic(){
  const g=gs3.value,m=ts3.value,rows=rowsFor(g),v=values(rows,m),avg=mean(v),ranked=sorted(rows,m).filter(x=>valid(x.value)),max=ranked[0],min=ranked[ranked.length-1],above=ranked.filter(r=>r.delta>0.05).length,below=ranked.filter(r=>r.delta<-0.05).length;
  tAvg.textContent=label(avg);tAvgSub.textContent=`${v.length} con dato`;tMax.textContent=max?label(max.value):"Sin dato";tMaxSub.textContent=max?max.student:"-";tMin.textContent=min?label(min.value):"Sin dato";tMinSub.textContent=min?min.student:"-";tAbove.textContent=above;tAvailable.textContent=v.length;
- const x=rows.map(r=>r.Estudiante),y=rows.map(r=>valid(r[m])?r[m]:null);
+ const orderedRows=[...rows].sort((a,b)=>{
+   const av=a[m],bv=b[m];
+   if(valid(av)&&valid(bv)) return bv-av;
+   if(valid(av)) return -1;
+   if(valid(bv)) return 1;
+   return a.Estudiante.localeCompare(b.Estudiante,"es",{numeric:true});
+ });
+ const x=orderedRows.map(r=>r.Estudiante),y=orderedRows.map(r=>valid(r[m])?r[m]:null);
  Plotly.newPlot("topicBar",[{x,y,type:"bar",name:m,text:y.map(label),textposition:"outside",cliponaxis:false},{x,y:x.map(()=>avg),type:"scatter",mode:"lines",name:"Promedio",line:{dash:"dash",width:3}}],{margin:{l:50,r:20,t:35,b:55},paper_bgcolor:"white",plot_bgcolor:"white",legend:{orientation:"h",y:1.15},xaxis:{title:"Estudiantes"},yaxis:{title:"Puntaje",range:[0,100]}},{responsive:true,displaylogo:false});
  Plotly.newPlot("topicHistogram",[{x:v,type:"histogram",nbinsx:Math.min(10,v.length+1),texttemplate:"%{y}",textposition:"outside",cliponaxis:false}],{margin:{l:50,r:20,t:35,b:55},paper_bgcolor:"white",plot_bgcolor:"white",xaxis:{title:m},yaxis:{title:"Frecuencia"}},{responsive:true,displaylogo:false});
  topicInsight.textContent=`${groupLabel(g)}. En ${m}, el promedio es ${label(avg)}. ${above} estudiantes están por encima y ${below} por debajo. ${rows.length-v.length} estudiantes no tienen dato disponible.`;
@@ -373,7 +387,7 @@ function updateTopic(){
 }
 
 function updateConsolidated(){
- const summaries=groupInfo.map(info=>{const rows=rowsFor(info.grupo),o={grupo:info.grupo,modalidad:info.modalidad,n:values(rows,"Punt Global").length};metrics.forEach(m=>o[m]=mean(values(rows,m)));return o});
+ const summaries=groupsAscending().map(info=>{const rows=rowsFor(info.grupo),o={grupo:info.grupo,modalidad:info.modalidad,n:values(rows,"Punt Global").length};metrics.forEach(m=>o[m]=mean(values(rows,m)));return o});
  cUnits.textContent=summaries.length;cStudents.textContent=summaries.reduce((a,r)=>a+r.n,0);
  const globalVals=data.map(r=>r["Punt Global"]).filter(valid),globalAvg=mean(globalVals);cGlobalAvg.textContent=label(globalAvg);
  const institutional={};
@@ -390,8 +404,21 @@ function updateConsolidated(){
  const radar=summaries.map(r=>({type:"scatterpolar",r:topics.map(t=>r[t]),theta:topics,fill:"toself",name:r.grupo,hovertemplate:`${r.grupo} · ${r.modalidad}<br>%{theta}: %{r:.1f}<extra></extra>`}));
  Plotly.newPlot("consolidatedRadar",radar,{margin:{l:30,r:30,t:15,b:15},paper_bgcolor:"white",polar:{radialaxis:{visible:true,range:[0,100]}},legend:{orientation:"h",y:1.12}},{responsive:true,displaylogo:false});
  const tb=document.querySelector("#consolidatedTable tbody");tb.innerHTML="";summaries.forEach(r=>{const tr=document.createElement("tr");tr.innerHTML=`<td><span class="badge">${r.grupo}</span></td><td>${r.modalidad}</td><td>${r.n}</td><td>${label(r["Punt Global"])}</td><td>${label(r["L critica"])}</td><td>${label(r["Matemáticas"])}</td><td>${label(r["Sociales"])}</td><td>${label(r["Naturales"])}</td><td>${label(r["Inglés"])}</td>`;tb.appendChild(tr)});
- const leaders=topics.map(t=>{const r=[...summaries].sort((a,b)=>b[t]-a[t])[0];return `${t}: ${r.grupo} (${label(r[t])})`}).join("; ");
- consolidatedInsight.textContent=`El consolidado incluye ${summaries.length} grupos/modalidades y ${globalVals.length} estudiantes con Puntaje Global. La temática con mayor promedio institucional es ${best?best[0]:"—"} (${best?label(best[1]):"—"}) y la de menor promedio es ${worst?worst[0]:"—"} (${worst?label(worst[1]):"—"}). Liderazgo por área: ${leaders}.`;
+ const leaders=topics.map(t=>{
+   const candidates=summaries.filter(r=>valid(r[t])).sort((a,b)=>b[t]-a[t]);
+   const r=candidates[0];
+   return r?`<li><strong>${t}:</strong> ${r.grupo} · ${r.modalidad} (${label(r[t])})</li>`:"";
+ }).join("");
+ consolidatedInsight.innerHTML=`
+   <ul style="margin:0 0 0 20px;padding:0;line-height:1.75">
+     <li>El consolidado incluye <strong>${summaries.length} grupos/modalidades</strong> y <strong>${globalVals.length} estudiantes</strong> con Puntaje Global disponible.</li>
+     <li>La temática con <strong>mayor promedio institucional</strong> es <strong>${best?best[0]:"—"}</strong> (${best?label(best[1]):"—"}).</li>
+     <li>La temática con <strong>menor promedio institucional</strong> es <strong>${worst?worst[0]:"—"}</strong> (${worst?label(worst[1]):"—"}).</li>
+     <li><strong>Grupos líderes por temática:</strong>
+       <ul style="margin:6px 0 0 20px;padding:0;line-height:1.65">${leaders}</ul>
+     </li>
+   </ul>
+ `;
 }
 
 ms1.addEventListener("change",updateGroup);
@@ -400,7 +427,7 @@ function updateHonors(){
   const grid=document.getElementById("honorsGrid");
   grid.innerHTML="";
 
-  groupInfo.forEach(info=>{
+  groupsAscending().forEach(info=>{
     const entries=top5RealNames
       .filter(r=>r.grupo===info.grupo)
       .sort((a,b)=>a.puesto-b.puesto);
